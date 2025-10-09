@@ -1,0 +1,292 @@
+---
+title: "Figure 5"
+author: "Anna Malkowska"
+date: "2025-02-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Figure 5A
+```{r}
+#Prepare gene annotation file
+library(dplyr)
+list <- sapply(list.files(path = ".", pattern="gene", full.names=TRUE), read.csv, header=TRUE, simplify = FALSE,USE.NAMES = TRUE)
+
+names(list) <- gsub(names(list), pattern="./", replacement="")
+names(list) <- gsub(names(list), pattern="_gene.annot.csv", replacement="")
+
+list2env(list, .GlobalEnv )
+rm(list)
+
+library(Gmisc)
+library(tidyverse)
+
+epNSC <- dplyr::rename(epNSC, "epNSC_gene" = "annot_thr")
+qNSC <- dplyr::rename(qNSC, "qNSC_gene" = "annot_thr")
+lpNSC <- dplyr::rename(lpNSC, "lpNSC_gene" = "annot_thr")
+
+epNSC$epNSC_gene <- as.factor(epNSC$epNSC_gene)
+qNSC$qNSC_gene <- as.factor(qNSC$qNSC_gene)
+lpNSC$lpNSC_gene <- as.factor(lpNSC$lpNSC_gene)
+
+transit_gene <- data.frame(epNSC$X, epNSC$epNSC_gene, qNSC$qNSC_gene, lpNSC$lpNSC_gene) 
+transit_gene <- column_to_rownames(transit_gene, var="epNSC.X")
+transit_gene <- dplyr::rename(transit_gene, "epNSCs" = "epNSC.epNSC_gene", "qNSCs" = "qNSC.qNSC_gene", "lpNSCs" = "lpNSC.lpNSC_gene")
+
+ts_gene <- transit_gene
+ts_gene <- filter_at(transit_gene, .vars = c("epNSCs", "qNSCs", "lpNSCs"), any_vars(!. %in% c("Low_signal")))
+ts_gene[sapply(ts_gene, is.character)] <- lapply(ts_gene[sapply(ts_gene, is.character)],as.factor)
+
+lvl= c("Open_promoters", "Enhancers", "Gene_body_1","Gene_body_2","Pc", "H1", "HP1", "Low_signal")        
+
+ts_gene[] <- lapply(ts_gene, factor, levels = lvl,
+                                   ordered = TRUE)
+ts_gene$gene <- row.names(ts_gene)
+
+
+h1toenhancer <- filter(ts_gene, epNSCs == "H1")
+h1toenhancer <- filter(h1toenhancer, qNSCs == "Enhancers")
+
+ts_gene <- h1toenhancer
+
+transitions <- table(ts_gene$epNSCs, ts_gene$qNSCs) %>%
+  getRefClass("Transition")$new(label = c("epNSCs", "qNSCs"))
+transitions$arrow_rez <- 1000
+transitions$skip_shadows <- T
+transitions$arrow_type <- "simple"
+transitions$min_lwd <- 0.05
+transitions$render()
+#ggsave("Figure 5Aa.pdf", width = 57, height = 82, unit = "mm")
+
+
+transitions_2 <- table(ts_gene$qNSCs,ts_gene$lpNSCs) %>%
+  getRefClass("Transition")$new(label = c("qNSC", "lpNSC"))
+transitions_2$arrow_rez <- 1000
+transitions_2$skip_shadows <- T
+transitions_2$arrow_type <- "simple"
+transitions_2$min_lwd <- 0.05
+transitions_2$render()
+#ggsave("Figure 5Ab.pdf", width = 57, height = 82, unit = "mm")
+
+
+```
+
+Figure 5B
+```{r}
+library(rbioapi)
+org <- rba_panther_info(what = "organisms")
+annots <- rba_panther_info(what = "datasets")
+genes <- ts_gene$gene
+enriched <- rba_panther_enrich(genes = genes,
+                               organism = 7227,
+                               annot_dataset =          "ANNOT_TYPE_ID_PANTHER_GO_SLIM_BP",
+                               cutoff = 0.05)
+
+result<- enriched[["result"]]
+
+write.csv(result, "Figure5B.csv")
+
+result <- dplyr::filter(result, number_in_reference < 500, number_in_reference > 10)
+
+result$term.label <- factor(result$term.label, levels = result$term.label[order(result$fold_enrichment, decreasing=TRUE)])
+
+#panther <- head(panther, n=20)
+#panther$percentage <- panther$Client.Text.Box.Input..1399./panther$Client.Text.Box.Input..expected.
+
+result$term.label <- sub("(?<=^.{40}).*","...", result$term.label, perl = T)
+result <- result[c(1,3,8,10,14,15,16,18,19,27,41),]
+
+result$fdr_log <- -log(result$fdr)
+
+library(MetBrewer)
+palette <- met.brewer(name="Signac", n=10)[1:3]
+palette <- c("#FDF7E1", palette)
+
+ggplot2::ggplot(result) +
+  geom_col(aes(fill=fdr_log, y = term.label,
+               x=fold_enrichment))+
+  xlab("Fold Enrichment")+
+  ylab("Gene Ontology entry")+
+  labs(fill='FDR')+
+  theme_bw()+
+    ggtitle("State 6 to State 2 gene group")+
+  theme(legend.title = element_text(size=6),plot.title=element_text(size=8, hjust = -0.2),
+                    legend.key.size = unit(2, 'mm'),
+                  axis.text = element_text(size=7),
+                   axis.title = element_text(size=7),
+                 legend.text=element_text(size=6),
+                 plot.margin = margin(t=0,r=0,b=0,l=0), 
+                  legend.margin = margin(t=0,r=0,b=0,l=0))+
+  scale_fill_gradientn(colours=palette)
+
+ggsave("Figure5B.pdf", height=44, width=83, units = "mm")
+```
+
+Figure 5C
+```{r, include=FALSE}
+
+library(Seurat)
+library(UCell)
+getwd()
+load("E:/For paper/scRNAseq Data/scRNAseq Data/200621_scTransform_st17_st24_Analyses/220401_RData_File(1).RData")
+Qlabel.integrated = UpdateSeuratObject(Qlabel.integrated)
+
+library(ggplot2)
+levels(Qlabel.integrated)
+DimPlot(Qlabel.integrated)
+
+rm(st17.markers)
+rm(st17only.markers)
+rm(st17a)
+rm(st17b)
+rm(st17a_data)
+rm(st17b_data)
+rm(st24.markers)
+rm(st24only.markers)
+rm(st24a)
+rm(st24a_data)
+rm(st24b)
+rm(st24b_data)
+rm(stage17)
+rm(stage24)
+
+Qlabel.integrated <- RenameIdents(object=Qlabel.integrated, "4_st17a" = "NSC_17")
+Qlabel.integrated <- RenameIdents(object=Qlabel.integrated, "4_st24a" ="NSC_24")
+Qlabel.integrated <- RenameIdents(object=Qlabel.integrated, "2_st24b" ="neurons_24", "2_st24a" ="neurons_24", "0_st24a" ="neurons_24", "0_st24b" ="neurons_24")
+Qlabel.integrated <- RenameIdents(object=Qlabel.integrated, "2_st17b" ="neurons_17", "2_st17a" ="neurons_17", "0_st17a" ="neurons_17", "0_st17b" ="neurons_17")
+Qlabel.integrated <- RenameIdents(object=Qlabel.integrated, "3_st17b" ="neurons_17", "3_st17a" ="neurons_17")
+Qlabel.integrated <- RenameIdents(object=Qlabel.integrated, "3_st24b" ="neurons_24", "3_st24a" ="neurons_24")
+
+x <- as.data.frame(rownames(Qlabel.integrated[["RNA"]]@counts))
+
+levels(Qlabel.integrated@active.ident)
+Qlabel.integrated_cp <- Qlabel.integrated
+Qlabel.integrated@active.ident <- factor(x = Qlabel.integrated@active.ident, levels = c("neurons_17", "neurons_24", "NSC_17",  "NSC_24" , "7_st17a"  ,  "8_st17a"  ,  "11_st17a",   "5_st17a"   ,
+ "9_st17a" ,   "10_st17a"  , "12_st17a",   "6_st17a"  ,  "6_st17b"  ,  "11_st17b" ,  "8_st17b" ,   "12_st17b"  ,
+"7_st17b"  ,  "9_st17b"  ,  "5_st17b" ,   "10_st17b" ,  "5_st24a" ,   "8_st24a"  ,  "10_st24a",   "7_st24a"   ,
+ "9_st24a" ,   "12_st24a"   ,"11_st24a"  , "6_st24a" ,   "9_st24b" ,   "11_st24b"  , "6_st24b"  ,  "5_st24b"   ,
+"8_st24b" ,  "10_st24b"  , "12_st24b"  , "7_st24b"))
+
+h1 <- ts_gene
+
+h1 <- dplyr::filter(h1,gene %in% x$`rownames(Qlabel.integrated[["RNA"]]@counts)`)
+
+markers <- list()
+markers$h1 <- h1$gene 
+UCellQlabel.integrated <- AddModuleScore_UCell(Qlabel.integrated, features = markers)
+
+labs <- c("qNSCs", "lpNSCs")
+
+VlnPlot(UCellQlabel.integrated, features = "h1_UCell" , same.y.lims = T, idents=c("NSC_17", "NSC_24")) + scale_fill_manual(values = c("#5C68AE", "#E87C89")) + scale_x_discrete(labels= labs) + RotatedAxis() + theme(legend.position = "none") + theme(legend.position = "none",text= element_text(size=7),
+                  axis.text = element_text(size=7),
+                   axis.title.y = element_text(size=7),
+                  axis.title.x = element_blank(),
+                 plot.margin = margin(t=0,r=0,b=0,l=0), 
+                  legend.margin = margin(t=0,r=0,b=0,l=0), line = element_line(linewidth=0.5))
+
+ggsave("Figure5C.pdf", height=50, width=33, units = "mm")
+```
+
+Figure 5D 
+```{r}
+
+write.csv(ts_gene, "active2torep2.csv")
+#get regions from flymine
+#plot TAF3 bedgraphs converted to bws using seqplots
+#bin track = 10
+#Plotting distances in [bp]:
+#Upstream: 
+#500
+#Anchored: 
+#3000
+#Downstream: 
+#500
+
+```
+
+Supplementary Figure 6
+```{r}
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+tss <- read.csv("TSS-500+200_sorted.bed", sep = "\t", header=F)
+tss_h1 <- filter(tss, V4 %in% h1toenhancer$gene)
+write.table(tss_h1, "TSS_h1.bed", col.names=FALSE, row.names=FALSE, sep="\t", quote=FALSE)
+
+#go to homer
+#copy directory from unix
+
+homer <- read.csv("tss/homerResults/homerres.csv")
+
+homer <- dplyr::filter(homer, homer$P.value != "NA")
+
+homer <- dplyr::select(homer, Rank, Best.Match.Details, log.P.pvalue, X..of.Targets)
+
+homer$Best.Match.Details <- factor(homer$Best.Match.Details, levels = homer$Best.Match.Details[order(homer$Rank, decreasing=T)])
+homer <- arrange(homer, Rank)
+homer$log.P.pvalue <- -(homer$log.P.pvalue)
+
+library(stringr) 
+homer$X..of.Targets <- str_sub(homer$X..of.Targets, end = -2)
+homer$X..of.Targets <- as.numeric(homer$X..of.Targets)
+
+homer <- homer[c(1,2,3,7,8),]
+
+#set theme
+theme_set(theme_bw() +
+    theme(legend.position = "right"))
+
+#read in images
+list <- sapply(list.files(path = "tss/svgtopng/", pattern="*.png*", full.names=TRUE), png::readPNG)
+
+#shorten names
+names(list) <- stringr::str_replace_all(string = names(list), pattern = "tss/svgtopng/", replacement = "")
+
+#make labels 
+labels <- list.files(path = "tss/svgtopng/", pattern="*.png*", full.names=TRUE)
+labels <- paste0("'<img src='", labels, "' height='40' /> ")
+names(labels) <- homer$Best.Match.Details
+labels2 <- homer$Best.Match.Details
+
+library(ggh4x)
+library(ggtext)
+#plot
+plot<- ggplot(homer, aes(x=X..of.Targets, y=Best.Match.Details, fill = log.P.pvalue))+
+  geom_bar(stat='identity')+
+  xlab("Percentage of sequences")+
+  ggtitle("Repressive 2 to Active 2 promoters", "Similarity to known TFs") +
+  theme(text=element_text(size=20))+
+  labs(fill="-log(10) P-value")+ 
+  ylab("Motifs")+
+  xlim(0,100)+
+  geom_text(aes(label = labels2, hjust = ifelse(X..of.Targets> 0, 0, 1), x = X..of.Targets + ifelse(X..of.Targets > 0, 1, -10)), size=6) +  
+  scale_fill_gradient(low = "#FCF2CC", high = "#D9463B")+
+  theme(axis.text.y=element_text(size=20))+
+  scale_y_discrete(labels = labels)+
+  theme(axis.text.y = ggtext::element_markdown())+
+  force_panelsizes(rows = unit(6, "in"),
+                   cols = unit(6, "in"))
+plot
+
+ggsave("homer_results.pdf", width=12, height=10)
+
+
+p= VlnPlot(Qlabel.integrated, fill.by = "ident", cols=c("#5C68AE", "#E87C89"), features = c("lola", "Trl", "Adf1", "Deaf1") , same.y.lims = T, idents=c("NSC_17", "NSC_24"), stack=T, flip=T) + scale_x_discrete(labels= labs) + RotatedAxis() + theme(line = element_line(linewidth=0.25),legend.position = "none",text= element_text(size=7),
+                  axis.text = element_text(size=7),
+                   axis.title.y = element_text(size=7),
+                  axis.title.x = element_blank(),
+                 plot.margin = margin(t=0,r=0,b=0,l=0), 
+                  legend.margin = margin(t=0,r=0,b=0,l=0))
+
+
+
+p$layers[[1]]$aes_params$size = 1
+p
+
+ggsave("FigureS6C.pdf", height=50, width=50, units = "mm")
+
+```
+

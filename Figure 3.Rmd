@@ -1,0 +1,494 @@
+---
+title: "Figure 3"
+author: "Anna Malkowska"
+date: "2025-02-03"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Figure 3A
+```{r}
+library(tidyverse)
+library(MetBrewer)
+library(gridExtra)
+library(cowplot)
+library(grid)
+library(dplyr)
+getwd()
+#epNSC bed
+epNSC <- read.csv("model_8/epNSC_8_model_8_dense.bed", sep="", header=F, skip=1)
+epNSC$V2 <- as.numeric(epNSC$V2)
+epNSC$V3 <- as.numeric(epNSC$V3)
+epNSC$length <- (epNSC$V3 - epNSC$V2)
+epNSC$V4 <- sub("^", "state", epNSC$V4)
+epNSC$V4 <- as.factor(epNSC$V4)
+
+qNSC <- read.csv("model_8/qNSC_8_model_8_dense.bed", sep="", header=F, skip=1)
+qNSC$V2 <- as.numeric(qNSC$V2)
+qNSC$V3 <- as.numeric(qNSC$V3)
+qNSC$length <- (qNSC$V3 - qNSC$V2)
+qNSC$V4 <- sub("^", "state", qNSC$V4)
+qNSC$V4 <- as.factor(qNSC$V4)
+
+lpNSC <- read.csv("model_8/lpNSC_8_model_8_dense.bed", sep="", header=F, skip=1)
+lpNSC$V2 <- as.numeric(lpNSC$V2)
+lpNSC$V3 <- as.numeric(lpNSC$V3)
+lpNSC$length <- (lpNSC$V3 - lpNSC$V2)
+lpNSC$V4 <- sub("^", "state", lpNSC$V4)
+lpNSC$V4 <- as.factor(lpNSC$V4)
+
+#prepare frequency tables
+for (i in unique(epNSC$V4)) {
+  assign(paste0("state", i), dplyr::filter(epNSC, V4 == i))
+}
+
+#make list and remove spare objects
+list <- mget(ls(pattern = "state")) 
+rm(list=ls(pattern="state"))
+
+percentage_epNSC <- data.frame()
+for(i in list){
+  len <- i[,10]
+  result <- sum(len)/sum(epNSC$length)
+  percentage_epNSC <- rbind(percentage_epNSC, result)
+}
+
+#check if makes sense 
+sum(percentage_epNSC) #should be 1
+
+#clean up the table
+names(percentage_epNSC) <- c("percentage_epNSC")
+rownames(percentage_epNSC) <- stringr::str_remove_all(names(list), pattern="state")
+
+percentage_epNSC <- (percentage_epNSC/sum(percentage_epNSC))*100
+percentage_epNSC$percentage_epNSC <- trunc(percentage_epNSC$percentage_epNSC*10^2)/10^2
+percentage_epNSC <- tibble::rownames_to_column(percentage_epNSC, var="state")
+percentage_epNSC$vector <- "vector"
+
+order <- c("5", "7", "3", "4", "8", "2", "1", "6")
+percentage_epNSC$state <- factor(percentage_epNSC$state,levels=order)
+percentage_epNSC <- percentage_epNSC %>% 
+  arrange(factor(state))
+
+#prepare frequency tables
+for (i in unique(qNSC$V4)) {
+  assign(paste0("state", i), dplyr::filter(qNSC, V4 == i))
+}
+
+#make list and remove spare objects
+list <- mget(ls(pattern = "state")) 
+rm(list=ls(pattern="state"))
+
+percentage_qNSC <- data.frame()
+for(i in list){
+  len <- i[,10]
+  result <- sum(len)/sum(qNSC$length)
+  percentage_qNSC <- rbind(percentage_qNSC, result)
+}
+
+#check if makes sense 
+sum(percentage_qNSC) #should be 1
+
+#clean up the table
+names(percentage_qNSC) <- c("percentage_qNSC")
+rownames(percentage_qNSC) <- stringr::str_remove_all(names(list), pattern="state")
+
+percentage_qNSC <- (percentage_qNSC/sum(percentage_qNSC))*100
+percentage_qNSC$percentage_qNSC <- trunc(percentage_qNSC$percentage_qNSC*10^2)/10^2
+percentage_qNSC <- tibble::rownames_to_column(percentage_qNSC, var="state")
+percentage_qNSC$vector <- "vector"
+
+percentage_qNSC$state <- factor(percentage_qNSC$state,levels=order)
+percentage_qNSC <- percentage_qNSC %>% 
+  arrange(factor(state))
+
+
+#prepare frequency tables
+for (i in unique(lpNSC$V4)) {
+  assign(paste0("state", i), dplyr::filter(lpNSC, V4 == i))
+}
+
+#make list and remove spare objects
+list <- mget(ls(pattern = "state")) 
+rm(list=ls(pattern="state"))
+
+percentage_lpNSC <- data.frame()
+for(i in list){
+  len <- i[,10]
+  result <- sum(len)/sum(lpNSC$length)
+  percentage_lpNSC <- rbind(percentage_lpNSC, result)
+}
+
+#check if makes sense 
+sum(percentage_lpNSC) #should be 1
+
+#clean up the table
+names(percentage_lpNSC) <- c("percentage_lpNSC")
+rownames(percentage_lpNSC) <- stringr::str_remove_all(names(list), pattern="state")
+
+percentage_lpNSC <- (percentage_lpNSC/sum(percentage_lpNSC))*100
+percentage_lpNSC$percentage_lpNSC <- trunc(percentage_lpNSC$percentage_lpNSC*10^2)/10^2
+percentage_lpNSC <- tibble::rownames_to_column(percentage_lpNSC, var="state")
+percentage_lpNSC$vector <- "vector"
+percentage_lpNSC$state <- factor(percentage_lpNSC$state,levels=order)
+percentage_lpNSC <- percentage_lpNSC %>% 
+  arrange(factor(state))
+percentage_lpNSC[1:7,]
+
+
+palette <- c("#D9463B","#E87C89", "#F4991C", "#F4C412", "#5C68AE", "#3C3A3E", "#289A80", "white")
+
+
+#plot frequency table 
+
+legend <- ggplot(percentage_epNSC[1:7,], aes(fill=state, y=percentage_epNSC, x=vector)) + 
+  geom_bar(position="stack", stat="identity", width=1)+
+    theme(legend.key.size = unit(2, 'mm'),legend.text=element_text(size=7),
+    legend.title = element_text(size=7), plot.title=element_text(size=8))+
+    scale_fill_manual(labels=c('State 1', 'State 2', 'State 3', 'State 4', 'State 5',
+                                 'State 6', 'State 7', 'Unannotated'), values=palette)
+  
+legend <- get_legend(legend)
+
+grob_epNSC <- grobTree(textGrob(paste0(percentage_epNSC$percentage_epNSC[8],"%"), x=0.5,  y=0.5, hjust=0.5,
+  gp=gpar(col="black", fontsize=7)))
+
+
+percentage_epNSC_plot <- ggplot(percentage_epNSC, aes(fill=state, y=percentage_epNSC, x=vector)) + 
+  geom_bar(position="stack", stat="identity", width=1)+
+  scale_fill_manual(values=palette)+
+  theme_minimal()+   ylab("Percentage of genome")+
+  theme(panel.grid.major=element_blank(), panel.grid.minor = element_blank(), 
+        axis.ticks.y.left = element_blank(), axis.line.y.left = element_blank(),
+        axis.text.x = element_blank(), axis.text.y.left = element_blank(),
+        plot.margin = margin(0,-1,0,-1), 
+        legend.position="none", 
+        axis.title.y.left = element_text(hjust = 0.8, angle = 90, size=7)) +
+  xlab("")+
+  geom_text(aes(label=ifelse(percentage_epNSC >= 2, paste0(percentage_epNSC,"%"),"")),
+            position=position_stack(vjust=0.5), colour="white", size=2.5)+
+  labs(fill="Chromatin state")+  annotation_custom(grob_epNSC)
+
+grob_qNSC <- grobTree(textGrob(paste0(percentage_qNSC$percentage_qNSC[8],"%"), x=0.5,  y=0.5, hjust=0.5,
+  gp=gpar(col="black", fontsize=7)))
+
+#plot frequency table 
+percentage_qNSC_plot <- ggplot(percentage_qNSC, aes(fill=state, y=percentage_qNSC, x=vector)) + 
+  geom_bar(position="stack", stat="identity", width=1)+
+  scale_fill_manual(values=palette)+
+  theme_minimal()+
+  theme(panel.grid.major=element_blank(), panel.grid.minor = element_blank(), 
+        axis.ticks.y.left = element_blank(), axis.line.y.left = element_blank(),
+        axis.text.x = element_blank(), axis.text.y.left = element_blank(),
+        plot.margin = margin(0,-1,0,-1),) +
+  ylab("")+
+  xlab("")+
+  geom_text(aes(label=ifelse(percentage_qNSC >= 2, paste0(percentage_qNSC,"%"),"")),
+            position=position_stack(vjust=0.5), colour="white", size=2.5)+
+  labs(fill="Chromatin state")+
+  theme(legend.position="none")+
+  annotation_custom(grob_qNSC)
+
+grob_lpNSC <- grobTree(textGrob(paste0(percentage_lpNSC$percentage_lpNSC[8],"%"), x=0.5,  y=0.5, hjust=0.5,
+  gp=gpar(col="black", fontsize=7)))
+
+#plot frequency table 
+percentage_lpNSC_plot <- ggplot(percentage_lpNSC, aes(fill=state, y=percentage_lpNSC, x=vector)) + 
+  geom_bar(position="stack", stat="identity", width=1)+
+  scale_fill_manual(values=palette)+
+  theme_minimal()+
+  theme(panel.grid.major=element_blank(), panel.grid.minor = element_blank(), 
+        axis.ticks.y.left = element_blank(), axis.line.y.left = element_blank(),
+        axis.text.x = element_blank(), axis.text.y.left = element_blank(), 
+        plot.margin = margin(0,-1,0,-1), ) +
+  ylab("")+
+  xlab("")+
+  geom_text(aes(label=ifelse(percentage_lpNSC >= 2, paste0(percentage_lpNSC,"%"),"")),
+            position=position_stack(vjust=0.5), colour="white", size=2.5)+
+  labs(fill="Chromatin state")+
+  theme(legend.position="none")+
+  annotation_custom(grob_lpNSC)
+
+plot <- grid.arrange(arrangeGrob(percentage_epNSC_plot, 
+                                 top = textGrob("epNSCs", gp = gpar(fontsize = 8),hjust=0.6)), 
+             arrangeGrob(percentage_qNSC_plot, top = textGrob("qNSCs", gp = gpar(fontsize = 8), hjust=0.6)),
+             arrangeGrob(percentage_lpNSC_plot, top = textGrob("lpNSCs", gp = gpar(fontsize = 8), hjust = 0.6)),
+             arrangeGrob(legend),
+             top = textGrob("State frequency per condition", gp = gpar(fontsize = 8)), nrow=1)
+
+ggsave(plot=plot, "Figure 3A.pdf", height=120, width=100, units = "mm")
+```
+
+Figure 3B 
+```{r}
+library(dplyr)
+getwd()
+
+epNSC_TSS <- read.csv("epNSC_TSS.annot.csv", header=TRUE)
+epNSC_TSS <- epNSC_TSS %>% mutate(annot_thr = as.character(gsub("_state", "", annot_thr)))
+
+qNSC_TSS <- read.csv("qNSC_TSS.annot.csv", header=TRUE)
+qNSC_TSS <- qNSC_TSS %>% mutate(annot_thr = as.character(gsub("_state", "", annot_thr)))
+
+lpNSC_TSS <- read.csv("lpNSC_TSS.annot.csv", header=TRUE)
+lpNSC_TSS <- lpNSC_TSS %>% mutate(annot_thr = as.character(gsub("_state", "", annot_thr)))
+
+lvl= c("Open_promoters", "Enhancers", "Gene_body_1","Gene_body_2","Pc", "H1", "HP1", "Low signal")   
+
+epNSC_TSS$annot_thr <- factor(epNSC_TSS$annot_thr, ordered = TRUE, levels = lvl)
+qNSC_TSS$annot_thr <- factor(qNSC_TSS$annot_thr, ordered = TRUE, levels = lvl)
+lpNSC_TSS$annot_thr <- factor(lpNSC_TSS$annot_thr, ordered = TRUE, levels = lvl)
+
+perc_epNSC <- dplyr::count(epNSC_TSS, annot_thr)  
+perc_epNSC$perc_ep <- perc_epNSC$n/length(epNSC_TSS$annot_thr)*100
+sum(perc_epNSC$perc_ep)
+perc_epNSC$perc_ep <- round(perc_epNSC$perc_ep, digits = 2)
+sum(perc_epNSC$perc_ep)
+ 
+perc_qNSC <- dplyr::count(qNSC_TSS, annot_thr)  
+perc_qNSC$perc_q <- perc_qNSC$n/length(qNSC_TSS$annot_thr)*100
+sum(perc_qNSC$perc_q)
+perc_qNSC$perc_q <- round(perc_qNSC$perc_q, digits = 2)
+sum(perc_qNSC$perc_q)
+
+perc_lpNSC <- dplyr::count(lpNSC_TSS, annot_thr)  
+perc_lpNSC$perc_lp <- perc_lpNSC$n/length(lpNSC_TSS$annot_thr)*100
+sum(perc_lpNSC$perc_lp)
+perc_lpNSC$perc_lp <- round(perc_lpNSC$perc_lp, digits = 2)
+sum(perc_lpNSC$perc_lp)
+
+perc_epNSC <- dplyr::select(perc_epNSC, annot_thr, perc_ep)
+
+perc_qNSC <- dplyr::select(perc_qNSC, annot_thr, perc_q)
+
+perc_lpNSC <- dplyr::select(perc_lpNSC, annot_thr, perc_lp)
+
+perc_epNSC$vector <- "vector"
+perc_qNSC$vector <- "vector"
+perc_lpNSC$vector <- "vector"
+
+#custom palette
+palette <- c("#D9463B","#E87C89", "#F4991C", "#F4C412", "#5C68AE", "#3C3A3E", "#289A80", "#868D9D")
+
+percentage_epNSC <- perc_epNSC 
+percentage_qNSC <- perc_qNSC 
+percentage_lpNSC <- perc_lpNSC 
+
+palette <- c("#D9463B","#E87C89", "#F4991C", "#F4C412", "#5C68AE", "#3C3A3E", "#289A80", "white")
+
+
+#plot frequency table 
+
+legend <- ggplot(percentage_epNSC[1:7,], aes(fill=annot_thr, y=perc_ep, x=vector)) + 
+  geom_bar(position="stack", stat="identity", width=1)+
+    theme(legend.key.size = unit(2, 'mm'),legend.text=element_text(size=7),
+    legend.title = element_text(size=7), plot.title=element_text(size=8))+
+    scale_fill_manual(labels=c('State 1', 'State 2', 'State 3', 'State 4', 'State 5',
+                                 'State 6', 'State 7', 'Unannotated'), values=palette)
+  
+legend <- get_legend(legend)
+
+grob_epNSC <- grobTree(textGrob(paste0(percentage_epNSC$perc_ep[8],"%"), x=0.5,  y=0.4, hjust=0.5,
+  gp=gpar(col="black", fontsize=7)))
+
+
+percentage_epNSC_plot <- ggplot(percentage_epNSC, aes(fill=annot_thr, y=perc_ep, x=vector)) + 
+  geom_bar(position="stack", stat="identity", width=1)+
+  scale_fill_manual(values=palette)+
+  theme_minimal()+   ylab("Percentage of genome")+
+  theme(panel.grid.major=element_blank(), panel.grid.minor = element_blank(), 
+        axis.ticks.y.left = element_blank(), axis.line.y.left = element_blank(),
+        axis.text.x = element_blank(), axis.text.y.left = element_blank(),
+        plot.margin = margin(0,-1,0,-1), 
+        legend.position="none", 
+        axis.title.y.left = element_text(hjust = 0.8, angle = 90, size=7)) +
+  xlab("")+
+  geom_text(aes(label=ifelse(perc_ep >= 2, paste0(perc_ep,"%"),"")),
+            position=position_stack(vjust=0.5), colour="white", size=2.5)+
+  labs(fill="Chromatin state")+  annotation_custom(grob_epNSC)
+
+grob_qNSC <- grobTree(textGrob(paste0(percentage_qNSC$perc_q[8],"%"), x=0.5,  y=0.4, hjust=0.5,
+  gp=gpar(col="black", fontsize=7)))
+
+#plot frequency table 
+percentage_qNSC_plot <- ggplot(percentage_qNSC, aes(fill=annot_thr, y=perc_q, x=vector)) + 
+  geom_bar(position="stack", stat="identity", width=1)+
+  scale_fill_manual(values=palette)+
+  theme_minimal()+
+  theme(panel.grid.major=element_blank(), panel.grid.minor = element_blank(), 
+        axis.ticks.y.left = element_blank(), axis.line.y.left = element_blank(),
+        axis.text.x = element_blank(), axis.text.y.left = element_blank(),
+        plot.margin = margin(0,-1,0,-1),) +
+  ylab("")+
+  xlab("")+
+  geom_text(aes(label=ifelse(perc_q >= 2, paste0(perc_q,"%"),"")),
+            position=position_stack(vjust=0.5), colour="white", size=2.5)+
+  labs(fill="Chromatin state")+
+  theme(legend.position="none")+
+  annotation_custom(grob_qNSC)
+
+grob_lpNSC <- grobTree(textGrob(paste0(percentage_lpNSC$perc_lp[8],"%"), x=0.5,  y=0.4, hjust=0.5,
+  gp=gpar(col="black", fontsize=7)))
+
+#plot frequency table 
+percentage_lpNSC_plot <- ggplot(percentage_lpNSC, aes(fill=annot_thr, y=perc_lp, x=vector)) + 
+  geom_bar(position="stack", stat="identity", width=1)+
+  scale_fill_manual(values=palette)+
+  theme_minimal()+
+  theme(panel.grid.major=element_blank(), panel.grid.minor = element_blank(), 
+        axis.ticks.y.left = element_blank(), axis.line.y.left = element_blank(),
+        axis.text.x = element_blank(), axis.text.y.left = element_blank(), 
+        plot.margin = margin(0,-1,0,-1), ) +
+  ylab("")+
+  xlab("")+
+  geom_text(aes(label=ifelse(perc_lp >= 2, paste0(perc_lp,"%"),"")),
+            position=position_stack(vjust=0.5), colour="white", size=2.5)+
+  labs(fill="Chromatin state")+
+  theme(legend.position="none")+
+  annotation_custom(grob_lpNSC)
+
+plot <- grid.arrange(arrangeGrob(percentage_epNSC_plot, 
+                                 top = textGrob("epNSCs", gp = gpar(fontsize = 8),hjust=0.6)), 
+             arrangeGrob(percentage_qNSC_plot, top = textGrob("qNSCs", gp = gpar(fontsize = 8), hjust=0.6)),
+             arrangeGrob(percentage_lpNSC_plot, top = textGrob("lpNSCs", gp = gpar(fontsize = 8),
+                                                               hjust = 0.6)),
+             arrangeGrob(legend),
+             top = textGrob("State frequency per condition (TSS regions)", gp = gpar(fontsize = 8)), nrow=1)
+
+plot
+
+ggsave(plot=plot, "TSS.pdf", height=100, width=100, units = "mm")
+getwd()
+
+```
+
+Figure 3C
+```{r}
+library(DiffBind)
+library(ggplot2)
+
+#read in the metadata
+#create metadata based on the table shown in the diffbind vignette
+table <- read.csv("TAF3/table_TAF3.csv")
+db.ep <- dba(sampleSheet=table)
+
+# summits - TRUE means that peaksets are unaffected by use of summit calculations
+db.ep <- dba.count(db.ep, bSubControl=TRUE, minOverlap=1, fragmentSize = 0, summits = TRUE)
+
+# normalise (default by sequencing depth)
+db.ep <- dba.normalize(db.ep)
+# model the contrast
+db.ep <- dba.contrast(db.ep, reorderMeta=list(Tissue="epNSC"))
+#analyse!!
+db.ep <- dba.analyze(db.ep)
+
+
+#dba.plotVenn(db.epNSC, contrast=1, bDB=TRUE,bGain=TRUE, bLoss=TRUE, bAll=F)
+db.ep.DB <- dba.report(db.ep, bAll = T, th = 1)
+
+vol.data <- as.data.frame(db.ep.DB)
+vol.data <- dplyr::select(vol.data, Fold, FDR)
+#vol.data <- filter(vol.data, vol.data$FDR <0.01)
+
+#log the FDR
+vol.data$logFDR <- -log10(vol.data$FDR)
+
+#plot with conditional colour&labels
+volc_ep <- ggplot(vol.data, aes(x=Fold, y=logFDR, colour = 
+                                  ifelse(FDR <0.05 & Fold <0,"#DA463B", ifelse(FDR <0.05,"#868D9D", "#5D69B0"))))+
+  geom_point(alpha=0.1, size=1)+
+  xlab("log2 Fold Change")+
+  ylab("-log10(FDR)")+
+  geom_vline(xintercept = 1, linetype = "dashed", linewidth=0.5, color = "grey")+
+  geom_vline(xintercept = -1, linetype = "dashed", linewidth=0.5, color = "grey")+
+  geom_hline(yintercept = 1.29, linetype = "dashed", linewidth=0.5, color = "grey")+
+  theme_bw(base_size = 8)+
+  theme(legend.position = 'none')+
+  scale_colour_manual(values=c("#868D9D","#5C68AE","#DA463B"))
+  
+volc_ep
+ggsave(filename = "Figure3C.pdf",width = 57, height = 40, unit = "mm")
+
+db.ep.DB.df <- as.data.frame(db.ep.DB)
+
+ep_df <- filter(db.ep.DB.df, FDR < 0.05)
+
+ep_df$name <- ifelse(test = ep_df$Fold > 0, yes = "qNSCs", no = "epNSCs")
+
+ggplot(ep_df,
+       aes(x=name, fill = name, show.legend = F)) +
+       geom_bar(show.legend = F)+
+  theme_bw(base_size = 7)+
+  theme(axis.title.x = element_blank())+
+  theme(axis.text.x = element_text(angle = 30, vjust = 0.5, hjust=0.5))+
+  ylab("Number of peaks with FDR<0.05")+
+  scale_y_continuous(limits = c(0,5000), breaks= scales::pretty_breaks(n=6))+
+  scale_fill_manual(values=c("#D9463B", "#5C68AE"))
+
+ggsave(filename = "Figure 3Ca.pdf",width = 25, height = 40, unit = "mm", dpi = 300)
+
+```
+
+Figure 3D.
+```{r}
+#Prepare gene annotation file
+library(dplyr)
+list <- sapply(list.files(path = ".", pattern="gene", full.names=TRUE), read.csv, header=TRUE, simplify = FALSE,USE.NAMES = TRUE)
+
+names(list) <- gsub(names(list), pattern="./", replacement="")
+names(list) <- gsub(names(list), pattern="_gene.annot.csv", replacement="")
+
+list2env(list, .GlobalEnv )
+rm(list)
+
+library(Gmisc)
+library(tidyverse)
+
+epNSC <- dplyr::rename(epNSC, "epNSC_gene" = "annot_thr")
+qNSC <- dplyr::rename(qNSC, "qNSC_gene" = "annot_thr")
+lpNSC <- dplyr::rename(lpNSC, "lpNSC_gene" = "annot_thr")
+
+epNSC$epNSC_gene <- as.factor(epNSC$epNSC_gene)
+qNSC$qNSC_gene <- as.factor(qNSC$qNSC_gene)
+lpNSC$lpNSC_gene <- as.factor(lpNSC$lpNSC_gene)
+
+transit_gene <- data.frame(epNSC$X, epNSC$epNSC_gene, qNSC$qNSC_gene, lpNSC$lpNSC_gene) 
+transit_gene <- column_to_rownames(transit_gene, var="epNSC.X")
+transit_gene <- dplyr::rename(transit_gene, "epNSCs" = "epNSC.epNSC_gene", "qNSCs" = "qNSC.qNSC_gene", "lpNSCs" = "lpNSC.lpNSC_gene")
+
+ts_gene <- transit_gene
+ts_gene <- filter_at(transit_gene, .vars = c("epNSCs", "qNSCs", "lpNSCs"), any_vars(!. %in% c("Low_signal")))
+ts_gene[sapply(ts_gene, is.character)] <- lapply(ts_gene[sapply(ts_gene, is.character)],as.factor)
+
+lvl= c("Open_promoters", "Enhancers", "Gene_body_1","Gene_body_2","Pc", "H1", "HP1", "Low_signal")                         
+
+ts_gene[] <- lapply(ts_gene, factor, levels = lvl,
+                                   ordered = TRUE)
+ts_gene$gene <- row.names(ts_gene)
+
+transitions <- table(ts_gene$epNSCs, ts_gene$qNSCs) %>%
+  getRefClass("Transition")$new(label = c("epNSCs", "qNSCs"))
+transitions$arrow_rez <- 1000
+transitions$skip_shadows <- T
+transitions$arrow_type <- "simple"
+transitions$min_lwd <- 0.05
+transitions$render()
+
+transitions_2 <- table(ts_gene$qNSCs,ts_gene$lpNSCs) %>%
+  getRefClass("Transition")$new(label = c("qNSC", "lpNSC"))
+transitions_2$arrow_rez <- 1000
+transitions_2$skip_shadows <- T
+transitions_2$arrow_type <- "simple"
+transitions_2$min_lwd <- 0.05
+transitions_2$render()
+
+trans <- transitions$transitions[[1]]
+trans2 <- transitions_2$transitions[[1]]
+
+write.csv(ts_gene, "ts_gene.csv")
+
+```
+

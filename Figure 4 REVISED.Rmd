@@ -1,0 +1,194 @@
+---
+title: "Figure 4"
+author: "Anna Malkowska"
+date: "2025-02-11"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Figure 4A
+```{r}
+#Prepare gene annotation file
+library(dplyr)
+list <- sapply(list.files(path = ".", pattern="gene", full.names=TRUE), read.csv, header=TRUE, simplify = FALSE,USE.NAMES = TRUE)
+
+names(list) <- gsub(names(list), pattern="./", replacement="")
+names(list) <- gsub(names(list), pattern="_gene.annot.csv", replacement="")
+
+list2env(list, .GlobalEnv )
+rm(list)
+
+
+library(Gmisc)
+library(tidyverse)
+
+epNSC <- dplyr::rename(epNSC, "epNSC_gene" = "annot_thr")
+qNSC <- dplyr::rename(qNSC, "qNSC_gene" = "annot_thr")
+lpNSC <- dplyr::rename(lpNSC, "lpNSC_gene" = "annot_thr")
+
+epNSC$epNSC_gene <- as.factor(epNSC$epNSC_gene)
+qNSC$qNSC_gene <- as.factor(qNSC$qNSC_gene)
+lpNSC$lpNSC_gene <- as.factor(lpNSC$lpNSC_gene)
+
+transit_gene <- data.frame(epNSC$X, epNSC$epNSC_gene, qNSC$qNSC_gene, lpNSC$lpNSC_gene) 
+transit_gene <- column_to_rownames(transit_gene, var="epNSC.X")
+transit_gene <- dplyr::rename(transit_gene, "epNSCs" = "epNSC.epNSC_gene", "qNSCs" = "qNSC.qNSC_gene", "lpNSCs" = "lpNSC.lpNSC_gene")
+
+ts_gene <- transit_gene
+ts_gene <- filter_at(transit_gene, .vars = c("epNSCs", "qNSCs", "lpNSCs"), any_vars(!. %in% c("Low_signal")))
+ts_gene[sapply(ts_gene, is.character)] <- lapply(ts_gene[sapply(ts_gene, is.character)],as.factor)
+
+lvl= c("Open_promoters", "Enhancers", "Gene_body_1","Gene_body_2","Pc", "H1", "HP1", "Low_signal")                         
+ts_gene[] <- lapply(ts_gene, factor, levels = lvl,
+                                   ordered = TRUE)
+ts_gene$gene <- row.names(ts_gene)
+
+others <- filter(ts_gene, epNSCs == "Open_promoters")
+others <- filter(others, qNSCs == "Gene_body_2")
+
+ts_gene <- others
+
+transitions <- table(ts_gene$epNSCs, ts_gene$qNSCs) %>%
+  getRefClass("Transition")$new(label = c("epNSCs", "qNSCs"))
+transitions$arrow_rez <- 1000
+transitions$skip_shadows <- T
+transitions$arrow_type <- "simple"
+transitions$min_lwd <- 0.05
+transitions$render()
+
+transitions_2 <- table(ts_gene$qNSCs,ts_gene$lpNSCs) %>%
+  getRefClass("Transition")$new(label = c("qNSC", "lpNSC"))
+transitions_2$arrow_rez <- 1000
+transitions_2$skip_shadows <- T
+transitions_2$arrow_type <- "simple"
+transitions_2$min_lwd <- 0.05
+transitions_2$render()
+```
+
+Figure 4C
+```{r}
+library(rbioapi)
+org <- rba_panther_info(what = "organisms")
+annots <- rba_panther_info(what = "datasets")
+genes <- ts_gene$gene
+enriched <- rba_panther_enrich(genes = genes,
+                               organism = 7227,
+                               annot_dataset =          "ANNOT_TYPE_ID_PANTHER_GO_SLIM_BP",
+                               cutoff = 0.05)
+
+result<- enriched[["result"]]
+result <- dplyr::filter(result, number_in_reference < 500, number_in_reference > 10)
+
+result$term.label <- factor(result$term.label, levels = result$term.label[order(result$fold_enrichment, decreasing=TRUE)])
+
+#panther <- head(panther, n=20)
+#panther$percentage <- panther$Client.Text.Box.Input..1399./panther$Client.Text.Box.Input..expected.
+
+result$term.label <- sub("(?<=^.{34}).*","...", result$term.label, perl = T)
+result <- result[c(1,2,4,5,6,7,8,9,12,16,17,18,23,28,36),]
+
+library(MetBrewer)
+palette <- met.brewer(name="Signac", n=10)[1:3]
+palette <- c("#FDF7E1", palette)
+
+result$fdr_log <- -log(result$fdr)
+
+ggplot2::ggplot(result) +
+  geom_col(aes(fill=fdr_log, y = term.label,
+               x=fold_enrichment))+
+  xlab("Fold Enrichment")+
+  ylab("")+
+  labs(fill='FDR')+
+  theme_bw()+
+    ggtitle("Active 1 to Active 4 gene group")+
+  theme(legend.title = element_text(size=6),plot.title=element_text(size=8, hjust = -0.2),
+                    legend.key.size = unit(2, 'mm'),
+                  axis.text = element_text(size=7),
+                   axis.title = element_text(size=7),
+                 legend.text=element_text(size=6),
+                 plot.margin = margin(t=0,r=0,b=0,l=0), 
+                  legend.margin = margin(t=0,r=0,b=0,l=0))+
+  scale_fill_gradientn(colours=palette)
+
+ggsave("Figure 4C.pdf", height=50, width=80, units = "mm")
+
+```
+
+
+Figure 4B and D
+```{r}
+library(Seurat)
+library(UCell)
+getwd()
+load("E:/For paper/scRNAseq Data/scRNAseq Data/200621_scTransform_st17_st24_Analyses/220401_RData_File(1).RData")
+Qlabel.integrated = UpdateSeuratObject(Qlabel.integrated)
+
+library(ggplot2)
+levels(Qlabel.integrated)
+DimPlot(Qlabel.integrated)
+
+rm(st17.markers)
+rm(st17only.markers)
+rm(st17a)
+rm(st17b)
+rm(st17a_data)
+rm(st17b_data)
+rm(st24.markers)
+rm(st24only.markers)
+rm(st24a)
+rm(st24a_data)
+rm(st24b)
+rm(st24b_data)
+rm(stage17)
+rm(stage24)
+
+Qlabel.integrated <- RenameIdents(object=Qlabel.integrated, "4_st17a" = "NSC_17")
+Qlabel.integrated <- RenameIdents(object=Qlabel.integrated, "4_st24a" ="NSC_24")
+Qlabel.integrated <- RenameIdents(object=Qlabel.integrated, "2_st24b" ="neurons_24", "2_st24a" ="neurons_24", "0_st24a" ="neurons_24", "0_st24b" ="neurons_24")
+Qlabel.integrated <- RenameIdents(object=Qlabel.integrated, "2_st17b" ="neurons_17", "2_st17a" ="neurons_17", "0_st17a" ="neurons_17", "0_st17b" ="neurons_17")
+Qlabel.integrated <- RenameIdents(object=Qlabel.integrated, "3_st17b" ="neurons_17", "3_st17a" ="neurons_17")
+Qlabel.integrated <- RenameIdents(object=Qlabel.integrated, "3_st24b" ="neurons_24", "3_st24a" ="neurons_24")
+
+x <- as.data.frame(rownames(Qlabel.integrated[["RNA"]]@counts))
+
+levels(Qlabel.integrated@active.ident)
+Qlabel.integrated_cp <- Qlabel.integrated
+Qlabel.integrated@active.ident <- factor(x = Qlabel.integrated@active.ident, levels = c("neurons_17", "neurons_24", "NSC_17",  "NSC_24" , "7_st17a"  ,  "8_st17a"  ,  "11_st17a",   "5_st17a"   ,
+ "9_st17a" ,   "10_st17a"  , "12_st17a",   "6_st17a"  ,  "6_st17b"  ,  "11_st17b" ,  "8_st17b" ,   "12_st17b"  ,
+"7_st17b"  ,  "9_st17b"  ,  "5_st17b" ,   "10_st17b" ,  "5_st24a" ,   "8_st24a"  ,  "10_st24a",   "7_st24a"   ,
+ "9_st24a" ,   "12_st24a"   ,"11_st24a"  , "6_st24a" ,   "9_st24b" ,   "11_st24b"  , "6_st24b"  ,  "5_st24b"   ,
+"8_st24b" ,  "10_st24b"  , "12_st24b"  , "7_st24b"))
+
+gene_body <- as.data.frame(ts_gene$gene)
+gene_body <- dplyr::filter(gene_body,`ts_gene$gene` %in% x$`rownames(Qlabel.integrated[["RNA"]]@counts)`)
+
+markers <- list()
+markers$gene_body <- gene_body$`ts_gene$gene` 
+markers$gene_body <- gene_body$`ts_gene$gene` 
+
+UCellQlabel.integrated <- AddModuleScore_UCell(Qlabel.integrated, features = markers)
+
+labs <- c("qNSCs", "lpNSCs")
+
+VlnPlot(UCellQlabel.integrated, features = "gene_body_UCell" , same.y.lims = T, idents=c("NSC_17", "NSC_24")) + scale_fill_manual(values = c("#5C68AE", "#E87C89")) + scale_x_discrete(labels= labs) + RotatedAxis() + theme(legend.position = "none",text= element_text(size=7),
+                  axis.text = element_text(size=7),
+                   axis.title.y = element_text(size=7),
+                  axis.title.x = element_blank(),
+                 plot.margin = margin(t=0,r=0,b=0,l=0), 
+                  legend.margin = margin(t=0,r=0,b=0,l=0), line = element_line(linewidth=1))
+
+ggsave("Figure4D.pdf", height=50, width=33, units = "mm")
+
+VlnPlot(Qlabel.integrated, features = c("Orc5", "aurA", "SMC2") , same.y.lims = T, idents=c("NSC_17", "NSC_24"), stack=T, flip=T) + scale_fill_manual(values = c("#E87C89", "#E87C89", "#E87C89")) + scale_x_discrete(labels= labs) + RotatedAxis() + theme(legend.position = "none",text= element_text(size=7),
+                  axis.text = element_text(size=7),
+                   axis.title.y = element_text(size=7),
+                  axis.title.x = element_blank(),
+                 plot.margin = margin(t=0,r=0,b=0,l=0), 
+                  legend.margin = margin(t=0,r=0,b=0,l=0), line = element_line(linewidth=1))
+
+ggsave("Figure4B.pdf", height=63, width=31, units = "mm")
+
+```

@@ -1,0 +1,325 @@
+---
+title: "Figure 2"
+author: "Anna Malkowska"
+date: "2025-02-03"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Figure 2B
+```{r}
+getwd()
+#prepare the emissions 
+emissions <- read.delim("model_8/emissions_8_model_8.txt")
+emissions <- textshape::column_to_rownames(emissions, loc=1)
+emissions <- trunc(emissions*10^5)/10^5
+
+emissions <- dplyr::rename(emissions, "H3K36me3" = "Dmnt3a", "H3K4me3" = "TAF3")
+
+library(MetBrewer)
+#set the colour palette
+palette <- met.brewer(name="Signac", n=10)[1:3]
+palette <- c("white",palette)
+colour <- colorRampPalette(palette)(100)[5:100]
+
+#custom reordering
+emissions <- emissions[,c("PolII","H3K4me3","Brm","H3K36me3","H4K20me1","H3K9ac","Pc","H1","HP1"),]
+emissions <- emissions[c("5","7","3","4","8","2","1","6"),]
+
+#renaming states 
+rownames(emissions) <- c("Active state 1","Active state 2","Active state 3",
+                         "Active state 4", "Repressive state 5", "Repressive state 6", "Repressive state 7", "Unannotated") 
+
+#emissions_8_conc <- emissions 
+
+#plot emissions
+plot <- pheatmap::pheatmap(emissions, 
+                 color = colour,
+                 border_color="white",
+                 cellwidth = 15, cellheight = 12, 
+                 scale = "none",
+                 treeheight_row = 50,
+                 kmeans_k = NA,
+                 show_rownames = TRUE, show_colnames = TRUE,
+                 clustering_method = "average",
+                 cluster_rows = FALSE, cluster_cols = FALSE,
+                 clustering_distance_rows = drows1,
+                 clustering_distance_cols = dcols1,
+                 angle_col = "315",
+                 height=4,
+                 width=8)
+
+plot <- pheatmap::pheatmap(emissions, 
+                 color = colour,
+                 border_color="white",
+                 cellwidth = 15, cellheight = 12, 
+                 scale = "none",
+                 treeheight_row = 50,
+                 kmeans_k = NA,
+                 show_rownames = TRUE, show_colnames = TRUE,
+                 clustering_method = "average",
+                 cluster_rows = FALSE, cluster_cols = FALSE,
+                 clustering_distance_rows = drows1,
+                 clustering_distance_cols = dcols1,
+                 angle_col = "315",
+                 height=4,
+                 width=8, filename="Figure2B.pdf")
+```
+
+Supplementary Figure 4C
+```{r}
+#transition probabilities
+#prepare the transitions 
+library(readr)
+library(dplyr)
+library(pheatmap)
+transitions <- read_tsv("model_8/transitions_8_model_8.txt")
+colnames(transitions)[1] <- "state"
+transitions <- textshape::column_to_rownames(transitions,"state")
+transitions <- trunc(transitions*10^5)/10^5
+
+#set the colour palette
+palette <- met.brewer(name="Signac", n=10)[1:3]
+palette <- c("white",palette)
+colour <- colorRampPalette(palette)(105)[5:105]
+colour <- c(colour, rep("#D8443C", times = 199))
+
+transitions <- transitions[, c(5,7,3,4,8,2,1,6)]
+transitions <- transitions[c(5,7,3,4,8,2,1,6),]
+
+transitions$state <- c(1,2,3,4,5,6,7,8)
+transitions[1,10] <- "State 1"
+transitions[2,10] <- "State 2"
+transitions[3,10] <- "State 3"
+transitions[4,10] <- "State 4"
+transitions[5,10] <- "State 5"
+transitions[6,10] <- "State 6"
+transitions[7,10] <- "State 7"
+transitions[8,10] <- "Unannotated"
+
+transitions <- as.data.frame(transitions)
+
+transitions <- transitions %>%
+  arrange(match(state, c("Active state 1",
+                         "Active state 2",
+                         "Active state 3",
+                         "Active state 4",
+                         "Repressive state 1",
+                         "Repressive state 2",
+                         "Repressive state 3",
+                         "Unannotated")))
+
+rownames(transitions) <- NULL
+transitions <- textshape::column_to_rownames(transitions, "V10")
+transitions <- dplyr::select(transitions, -state)
+
+transitions <- dplyr::rename(transitions, "Active state 1"="5", 
+                      "Active state 2" = "7",
+                      "Active state 3" = "3",
+                      "Active state 4" = "4",
+                      "Repressive state 1" = "8",
+                      "Repressive state 2" = "2",
+                      "Repressive state 3" = "1",
+                      "Unannotated" = "6")
+
+transitions <- transitions[1:7,1:7]
+
+#plot transitions
+pheatmap(transitions, 
+                 color = colour,
+                 border_color="white",
+                 cellwidth = 15, cellheight = 12, 
+                 scale = "none",
+                 treeheight_row = 50,
+                 kmeans_k = NA,
+                 show_rownames = TRUE, show_colnames = TRUE,
+                 clustering_method = "average",
+                 cluster_rows = FALSE, cluster_cols = FALSE,
+                 clustering_distance_rows = drows1,
+                 clustering_distance_cols = dcols1,
+                 angle_col = "315",
+                 height=4,
+                 width=8, filename="Supplementary4C.pdf")
+#dev.off()
+```
+
+Figure 2C
+```{r}
+#run coverage_over_states.sh 
+#get the coverage.txt files 
+
+epNSC_cov <- read.table("epNSC.coverage.txt")
+qNSC_cov <- read.table("qNSC.coverage.txt")
+lpNSC_cov <- read.table("lpNSC.coverage.txt")
+
+#set the colour palette
+palette <- c("#f4c40f", "#fe9b00", "#d8443c")
+palette <- c("white",palette)
+colour <- colorRampPalette(palette)(100)[5:100]
+
+#arrange order
+order_q <- c("5","7","3","4","8","2","1","6")
+
+mean_q <- qNSC_cov[order_q,]
+mean_q <- mean_q[2]
+mean_q <- head(mean_q,-1)
+
+#arrange order
+order_ep <- c("5","7","3","4","8","2","1","6")
+
+mean_ep <- epNSC_cov[order_ep,]
+mean_ep <- mean_ep[2]
+mean_ep <- head(mean_ep,-1)
+
+#arrange order
+order_lp <- c("5","7","3","4","8","2","1","6")
+
+mean_lp <- lpNSC_cov[order_lp,]
+mean_lp <- mean_lp[2]
+mean_lp <- head(mean_lp,-1)
+
+
+#New value = (x – μ) / σ
+#where:
+#x: Original value
+#μ: Mean of data
+#σ: Standard deviation of data
+
+mean_ep$mean <- (mean_ep$mean - mean(mean_ep$mean))/sd(mean_ep$mean)
+mean_q$mean <- (mean_q$mean - mean(mean_q$mean))/sd(mean_q$mean)
+mean_lp$mean <- (mean_lp$mean - mean(mean_lp$mean))/sd(mean_lp$mean)
+
+
+mean <- cbind(mean_ep, mean_q, mean_lp)
+
+#plot
+
+plot <- pheatmap(mean, 
+                 color = colour,
+                 border_color="white",
+                 cellwidth = 15, cellheight = 12, 
+                 scale = "none",
+                 treeheight_row = 50,
+                 kmeans_k = NA,
+                 show_rownames = TRUE, show_colnames = TRUE,
+                 clustering_method = "average",
+                 cluster_rows = FALSE, cluster_cols = FALSE,
+                 clustering_distance_rows = drows1,
+                 clustering_distance_cols = dcols1,
+                 angle_col = "45",
+                 labels_col = c("epNSCs", "qNSCs", "lpNSCs"),
+                 labels_row = c("Active 1", "Active 2", "Active 3", "Active 4", "Repressive 1", "Repressive 2", "Repressive 3"),
+                 height=4,width=8)
+
+plot <- pheatmap(mean, 
+                 color = colour,
+                 border_color="white",
+                 cellwidth = 15, cellheight = 12, 
+                 scale = "none",
+                 treeheight_row = 50,
+                 kmeans_k = NA,
+                 show_rownames = TRUE, show_colnames = TRUE,
+                 clustering_method = "average",
+                 cluster_rows = FALSE, cluster_cols = FALSE,
+                 clustering_distance_rows = drows1,
+                 clustering_distance_cols = dcols1,
+                 angle_col = "45",
+                 labels_col = c("epNSCs", "qNSCs", "lpNSCs"),
+                 labels_row = c("Active 1", "Active 2", "Active 3", "Active 4", "Repressive 1", "Repressive 2", "Repressive 3"),
+                 height=4,width=8, filename="Figure 2C.pdf")
+
+
+```
+
+Figure 2D
+Plot feature enrichment using ChiPseeker.
+```{r}
+library(plyranges)
+library(ChIPseeker)
+library(tidyverse)
+library(TxDb.Dmelanogaster.UCSC.dm6.ensGene)
+
+epNSC <- read.csv("model_8/epNSC_8_model_8_dense.bed", sep="", header=F, skip=1)
+epNSC$V2 <- as.numeric(epNSC$V2)
+epNSC$V3 <- as.numeric(epNSC$V3)
+epNSC$length <- (epNSC$V3 - epNSC$V2)
+#epNSC$V4 <- sub("^", "state", epNSC$V4)
+epNSC$V4 <- as.factor(epNSC$V4)
+
+#prepare peak file into GRange object with chr appended to first column
+epNSC <- epNSC[1:4]
+colnames(epNSC) <- c("chrom", "start", "end", "state")
+
+for (i in unique(epNSC$state)) {
+  assign(paste0("state", i), dplyr::filter(epNSC, state == i))
+}
+
+#make a list
+list <- mget(ls(pattern = "state")) 
+rm(list=ls(pattern="state"))
+
+#make Granges
+list <- lapply(list, makeGRangesFromDataFrame)
+
+#bin Granges
+list <- lapply(list, tile_ranges, width=300) 
+
+#annotate list
+txdb <- TxDb.Dmelanogaster.UCSC.dm6.ensGene
+list <- lapply(list, annotatePeak, tssRegion=c(-300,300), TxDb=txdb, annoDb="org.Dm.eg.db") 
+
+list_plot<- list()
+list_plot<- lapply(X=list, FUN=ChIPseeker::plotAnnoBar, title="")
+
+plot_df <- data.frame()
+
+#order <- c("5", "7", "3", "4", "8", "2", "1", "6")
+
+names <- list_plot[["state1"]][["data"]]$Feature
+State1 <- list_plot[["state5"]][["data"]]$Frequency
+State2 <- list_plot[["state7"]][["data"]]$Frequency
+State3 <- list_plot[["state3"]][["data"]]$Frequency
+State4 <- list_plot[["state4"]][["data"]]$Frequency
+State5 <- list_plot[["state8"]][["data"]]$Frequency
+State6 <- list_plot[["state2"]][["data"]]$Frequency
+State7 <- list_plot[["state1"]][["data"]]$Frequency
+
+plot_df <- data.frame("Active 1" = State1,
+                      "Active 2" = State2, 
+                      "Active 3" = State3, 
+                      "Active 4" = State4,
+                      "Repressive 1" = State5,
+                      "Repressive 2" = State6,
+                      "Repressive 3" = State7, 
+                      "Feature" = names)
+
+plot_df$Feature <- factor(plot_df$Feature, ordered = TRUE, levels = plot_df$Feature)
+plot_df$Feature <- forcats::fct_rev(plot_df$Feature)
+
+plot_df <- reshape2::melt(plot_df, na.rm = FALSE, value.name = "Frequency", id= "Feature")
+palette <- c("#D9463B", "#E87C89", "#F4991C", "#F4C412", "#F9E498", "#80518E", "#A174B3", "#5C68AE","#289A8D")
+palette <- rev(as.vector(palette))
+
+ggplot(plot_df, aes(x=variable, fill=Feature, y=Frequency)) + 
+      geom_bar(stat="identity") + coord_flip() + ggtitle("Feature Distribution")+
+      ylab("Percentage")+
+      theme_bw() + theme(axis.title.y=element_blank(),
+                 axis.text.y=element_text(size=8),
+                  axis.ticks.y=element_blank(), 
+                  legend.key.size = unit(2, 'mm'), 
+                  axis.text = element_text(size=8),
+                   axis.title = element_text(size=8),
+                 legend.text=element_text(size=7),
+                  legend.title = element_text(size=7),plot.title=element_text(size=8), 
+                 plot.margin = margin(t=0,r=0,b=0,l=0), 
+                  legend.margin = margin(t=0,r=0,b=0,l=0))+
+          scale_fill_manual(values=palette)+ 
+          scale_x_discrete(limits = rev(levels(plot_df$variable)))+
+        guides(fill = guide_legend(reverse=TRUE)) 
+
+ggsave(filename = "Figure 2D.pdf",width = 85, height = 47, unit = "mm")
+getwd()
+```
